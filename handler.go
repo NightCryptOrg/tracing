@@ -1,6 +1,7 @@
 package tracing
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -14,7 +15,7 @@ type slogHandler struct {
 	mutex   sync.Mutex // line mutex
 	bufPool sync.Pool  // line-buffer caching pool
 
-	opts SlogHandlerOptions
+	opts Options
 }
 
 func (h *slogHandler) Enabled(_ context.Context, level slog.Level) bool {
@@ -25,6 +26,7 @@ func (h *slogHandler) Enabled(_ context.Context, level slog.Level) bool {
 const (
 	ansiReset = "\x1b[0m"
 	ansiBold  = "\x1b[1m"
+	ansiItal  = "\x1b[3m"
 	ansiError = "\x1b[31m"
 	ansiInfo  = "\x1b[32m"
 	ansiWarn  = "\x1b[33m"
@@ -47,30 +49,83 @@ func getLogColor(level slog.Level) string {
 	return "" // unknown level
 }
 
-func (h *slogHandler) Handle(_ context.Context, r slog.Record) error {
+func (h *slogHandler) Handle(ctx context.Context, r slog.Record) error {
+	const indent = "  "
+
 	// Grab a line buffer from the pool
 	buf := GetBuffer()
 	defer CloseBuffer(buf)
 
-	// Write time
-	buf.WriteString(r.Time.Format(h.opts))
+	// Time
+	buf.WriteString(r.Time.Format(h.opts.TimeFormat))
 
-	// Write log level and message
+	// Log level
 	buf.WriteRune(' ')
-	if h.opts.Color {
-		buf.WriteString(getLogColor(r.Level))
-	}
+	h.writeColor(buf, getLogColor(r.Level))
 	buf.WriteString(r.Level.String())
-	buf.WriteString("  ")
+	// Message
+	buf.WriteString(indent)
 	buf.WriteString(r.Message)
-	buf.WriteString(ansiReset)
+	h.writeColor(buf, ansiReset)
+	buf.WriteRune('\n')
 
-	// Write span(s) from innermost to outer
-	// TODO
+	// Span(s) from innermost to outermost
+	if span, ok := ctx.Value(spanKey).(*Span); ok {
+		for ; span != nil; span = span.parent {
+			buf.WriteString(indent)
+			// 'in'/'with' keywords are italicized
+			// span names and field names are bolded
+			h.writeColor(buf, ansiItal)
+			buf.WriteString("in")
+			h.writeColor(buf, ansiReset)
+			buf.WriteRune(' ')
+
+			h.writeColor(buf, ansiBold)
+			buf.WriteString(span.Name)
+			h.writeColor(buf, ansiReset)
+			if len(span.Fields) == 0 {
+				buf.WriteRune('\n')
+				continue
+			}
+
+			// Span fields
+			buf.WriteRune(' ')
+			h.writeColor(buf, ansiItal)
+			buf.WriteString("with")
+			h.writeColor(buf, ansiReset)
+			first := true // skip comma separator for first filed
+			for name, val := range span.Fields {
+				if first {
+					buf.WriteRune(' ')
+					first = false
+				} else {
+					buf.WriteString(", ")
+				}
+
+				// Field name
+				h.writeColor(buf, ansiBold)
+				buf.WriteString(name)
+				h.writeColor(buf, ansiReset)
+				buf.WriteString(": ")
+
+				// Field value
+				buf.WriteString(val)
+			}
+
+			buf.WriteRune('\n')
+		}
+	}
 
 	h.mutex.Lock()
 	buf.WriteTo(h.w)
 	h.mutex.Unlock()
 
 	return nil
+}
+
+func (h *slogHandler) writeColor(buf *bytes.Buffer, color string) {
+	if !h.opts.Color {
+		return
+	}
+	buf.WriteString(color)
 }
