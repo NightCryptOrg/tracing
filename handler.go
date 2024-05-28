@@ -67,7 +67,10 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 	buf.WriteString(r.Time.Format(h.opts.TimeFormat))
 
 	// Log level
-	buf.WriteRune(' ')
+	logLevel := r.Level.String()
+	for i := len(logLevel); i < 6; i++ { // Right-pad loglevel to keep alignment
+		buf.WriteRune(' ')
+	}
 	h.writeColor(buf, getLogColor(r.Level))
 	buf.WriteString(r.Level.String())
 	// Message
