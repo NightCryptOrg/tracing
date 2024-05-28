@@ -8,17 +8,17 @@ import (
 	"sync"
 )
 
-// Slog.Handler Reference used
-// https://github.com/lmittmann/tint/blob/c4b42929a2f81f8fc100808a5e28956f33fe2739/handler.go
-type slogHandler struct {
-	w       io.Writer
-	mutex   sync.Mutex // line mutex
-	bufPool sync.Pool  // line-buffer caching pool
+// Slog.handler
+//
+// ref https://github.com/lmittmann/tint/blob/c4b42929a2f81f8fc100808a5e28956f33fe2739/handler.go
+type handler struct {
+	w     io.Writer
+	mutex sync.Mutex // output mutex, acquire lock before writing
 
 	opts Options
 }
 
-func (h *slogHandler) Enabled(_ context.Context, level slog.Level) bool {
+func (h *handler) Enabled(_ context.Context, level slog.Level) bool {
 	return level >= h.opts.MinLevel
 }
 
@@ -49,7 +49,14 @@ func getLogColor(level slog.Level) string {
 	return "" // unknown level
 }
 
-func (h *slogHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *handler) writeColor(buf *bytes.Buffer, color string) {
+	if !h.opts.Color {
+		return
+	}
+	buf.WriteString(color)
+}
+
+func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 	const indent = "  "
 
 	// Grab a line buffer from the pool
@@ -123,9 +130,27 @@ func (h *slogHandler) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
-func (h *slogHandler) writeColor(buf *bytes.Buffer, color string) {
-	if !h.opts.Color {
-		return
+// WithAttrs
+// NOTE: This handler ignores log attributes. The correct way to log
+// key/value pairs is to use spans. See SpanContext() for more info.
+func (h *handler) WithAttrs(_ []slog.Attr) slog.Handler {
+	return h
+}
+
+// WithGroup
+// NOTE: This handler currently ignores groups.
+func (h *handler) WithGroup(name string) slog.Handler {
+	return h
+}
+
+// NewHandler - Return a slog.Handler to be used for tracing
+func NewHandler(w io.Writer, opts *Options) slog.Handler {
+	// Allow calling with (w, nil) to use default options
+	if opts == nil {
+		opts = defaultOptions()
 	}
-	buf.WriteString(color)
+	return &handler{
+		w:     w,
+		mutex: sync.Mutex{},
+		opts:  *opts}
 }
