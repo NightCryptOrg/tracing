@@ -18,9 +18,8 @@ type Span struct {
 }
 
 // Enter a new tracing span, returning a new context with the new span.
-// If parent.Value("span") exists, the new span will be added
-// as a child of the existing span
-func SpanContext(parent context.Context, name string, args ...any) context.Context {
+// If the parent ctx contains a span, the new span will be added as a child
+func NewSpan(parent context.Context, name string, args ...any) context.Context {
 	var span Span
 	span.Name = name
 	span.Fields = make(map[string]string)
