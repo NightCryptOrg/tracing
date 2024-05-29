@@ -9,13 +9,12 @@ import (
 )
 
 var (
-	colorLogger *slog.Logger
-	logger      *slog.Logger
+	colorLogger = slog.New(tracing.NewHandler(os.Stdout, nil))
+	logger      = slog.New(tracing.NewHandler(os.Stdout, &tracing.Options{
+		MinLevel: slog.LevelDebug}))
 )
 
 func TestMain(m *testing.M) {
-	// Initialize loggers
-	colorLogger = slog.New(tracing.NewHandler(os.Stdout, nil))
 
 	var exitCode int
 	defer func() {

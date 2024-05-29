@@ -5,7 +5,7 @@ import "log/slog"
 // Options - Settings for a Handler
 type Options struct {
 	MinLevel   slog.Level // Minimum level to log
-	TimeFormat string     // Time format string compatible with time.Time.Format
+	TimeFormat string     // Time format string compatible (optional)
 	Color      bool       // Whether to use ANSI color sequences in output
 }
 

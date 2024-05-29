@@ -151,6 +151,12 @@ func NewHandler(w io.Writer, opts *Options) slog.Handler {
 	// Allow calling with (w, nil) to use default options
 	if opts == nil {
 		opts = defaultOptions()
+	} else {
+		// Use defaults for unspecified optional fields
+		defaults := defaultOptions()
+		if opts.TimeFormat == "" {
+			opts.TimeFormat = defaults.TimeFormat
+		}
 	}
 	return &handler{
 		w:     w,
