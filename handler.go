@@ -3,6 +3,7 @@ package tracing
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"sync"
@@ -81,6 +82,7 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 
 	// Span(s) from innermost to outermost
 	if span, ok := ctx.Value(spanKey).(*Span); ok {
+		logAttrs := true // Atrributes will be logged at the end of the innermost (top) span
 		for ; span != nil; span = span.parent {
 			buf.WriteString(indent)
 			// 'in'/'with' keywords are italicized
@@ -103,7 +105,7 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 			h.writeColor(buf, ansiItal)
 			buf.WriteString("with")
 			h.writeColor(buf, ansiReset)
-			first := true // skip comma separator for first filed
+			first := true // skip comma separator for first field
 			for name, val := range span.Fields {
 				if first {
 					buf.WriteRune(' ')
@@ -122,6 +124,24 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 				buf.WriteString(val)
 			}
 
+			// Log attributes
+			if logAttrs {
+				r.Attrs(func(attr slog.Attr) bool {
+					buf.WriteString(", ")
+
+					// Attr name
+					h.writeColor(buf, ansiBold)
+					buf.WriteString(attr.Key)
+					h.writeColor(buf, ansiReset)
+					buf.WriteString(": ")
+
+					// Attr value
+					buf.WriteString(fmt.Sprint(attr.Value))
+					return true
+				})
+				logAttrs = false
+			}
+
 			buf.WriteRune('\n')
 		}
 	}
@@ -134,8 +154,8 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 }
 
 // WithAttrs
-// NOTE: This handler ignores log attributes. The correct way to log
-// key/value pairs is to use spans. See SpanContext() for more info.
+// NOTE: This handler ignores attributes. The correct way to log
+// key/value pairs is to use spans or message-level attributes. See SpanContext() for more info.
 func (h *handler) WithAttrs(_ []slog.Attr) slog.Handler {
 	return h
 }
