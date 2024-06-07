@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"testing"
 
 	"github.com/NightCryptOrg/tracing"
@@ -36,5 +37,10 @@ func TestFormat(t *testing.T) {
 		t.Run("No Color", func(t *testing.T) {
 			testFormat(t, span, logger)
 		})
+	})
+
+	t.Run("Message Attrs", func(t *testing.T) {
+		span := tracing.NewSpan(context.Background(), "Message Attrs")
+		colorLogger.InfoContext(span, "Test Message Attrs", "str", "test", "int", 999, "float", math.Pi)
 	})
 }

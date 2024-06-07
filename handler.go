@@ -95,7 +95,7 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 			h.writeColor(buf, ansiBold)
 			buf.WriteString(span.Name)
 			h.writeColor(buf, ansiReset)
-			if len(span.Fields) == 0 {
+			if len(span.Fields) == 0 && r.NumAttrs() == 0 {
 				buf.WriteRune('\n')
 				continue
 			}
@@ -127,7 +127,12 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 			// Log attributes
 			if logAttrs {
 				r.Attrs(func(attr slog.Attr) bool {
-					buf.WriteString(", ")
+					if first {
+						buf.WriteRune(' ')
+						first = false
+					} else {
+						buf.WriteString(", ")
+					}
 
 					// Attr name
 					h.writeColor(buf, ansiBold)
