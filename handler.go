@@ -57,6 +57,24 @@ func (h *handler) writeColor(buf *bytes.Buffer, color string) {
 	buf.WriteString(color)
 }
 
+func (h *handler) writeAttr(buf *bytes.Buffer, key string, value string, first *bool) {
+	if *first {
+		buf.WriteRune(' ')
+		*first = false
+	} else {
+		buf.WriteString(", ")
+	}
+
+	// Attr name
+	h.writeColor(buf, ansiBold)
+	buf.WriteString(key)
+	h.writeColor(buf, ansiReset)
+	buf.WriteString(": ")
+
+	// Attr value
+	buf.WriteString(value)
+}
+
 func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 	const indent = "  "
 
@@ -80,9 +98,22 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 	h.writeColor(buf, ansiReset)
 	buf.WriteRune('\n')
 
+	// Message attributes
+	if r.NumAttrs() > 0 {
+		buf.WriteString(indent)
+		h.writeColor(buf, ansiItal)
+		buf.WriteString("with")
+		h.writeColor(buf, ansiReset)
+		first := true
+		r.Attrs(func(attr slog.Attr) bool {
+			h.writeAttr(buf, attr.Key, fmt.Sprint(attr.Value), &first)
+			return true
+		})
+		buf.WriteRune('\n')
+	}
+
 	// Span(s) from innermost to outermost
-	if span, ok := ctx.Value(spanKey).(*Span); ok {
-		logAttrs := true // Atrributes will be logged at the end of the innermost (top) span
+	if span, ok := ctx.Value(spanKey).(*Span); ok && span != nil {
 		for ; span != nil; span = span.parent {
 			buf.WriteString(indent)
 			// 'in'/'with' keywords are italicized
@@ -95,7 +126,7 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 			h.writeColor(buf, ansiBold)
 			buf.WriteString(span.Name)
 			h.writeColor(buf, ansiReset)
-			if len(span.Fields) == 0 && r.NumAttrs() == 0 {
+			if len(span.Fields) == 0 {
 				buf.WriteRune('\n')
 				continue
 			}
@@ -107,44 +138,7 @@ func (h *handler) Handle(ctx context.Context, r slog.Record) error {
 			h.writeColor(buf, ansiReset)
 			first := true // skip comma separator for first field
 			for name, val := range span.Fields {
-				if first {
-					buf.WriteRune(' ')
-					first = false
-				} else {
-					buf.WriteString(", ")
-				}
-
-				// Field name
-				h.writeColor(buf, ansiBold)
-				buf.WriteString(name)
-				h.writeColor(buf, ansiReset)
-				buf.WriteString(": ")
-
-				// Field value
-				buf.WriteString(val)
-			}
-
-			// Log attributes
-			if logAttrs {
-				r.Attrs(func(attr slog.Attr) bool {
-					if first {
-						buf.WriteRune(' ')
-						first = false
-					} else {
-						buf.WriteString(", ")
-					}
-
-					// Attr name
-					h.writeColor(buf, ansiBold)
-					buf.WriteString(attr.Key)
-					h.writeColor(buf, ansiReset)
-					buf.WriteString(": ")
-
-					// Attr value
-					buf.WriteString(fmt.Sprint(attr.Value))
-					return true
-				})
-				logAttrs = false
+				h.writeAttr(buf, name, val, &first)
 			}
 
 			buf.WriteRune('\n')

@@ -40,7 +40,13 @@ func TestFormat(t *testing.T) {
 	})
 
 	t.Run("Message Attrs", func(t *testing.T) {
-		span := tracing.NewSpan(context.Background(), "Message Attrs")
-		colorLogger.InfoContext(span, "Test Message Attrs", "str", "test", "int", 999, "float", math.Pi)
+		args := []any{"str", "test", "int", 999, "float", math.Pi}
+		const testMsg = "Test Message Attrs"
+		colorLogger.InfoContext(context.Background(), "Test Message Attrs", args...)
+
+		t.Run("With Span", func(t *testing.T) {
+			span := tracing.NewSpan(context.Background(), "Message Attrs")
+			colorLogger.InfoContext(span, "Test Message Attrs w/ Span", args...)
+		})
 	})
 }
