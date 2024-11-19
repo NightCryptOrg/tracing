@@ -18,20 +18,20 @@ func testFormat(_ *testing.T, ctx context.Context, logger *slog.Logger) {
 
 func TestFormat(t *testing.T) {
 	t.Run("Color", func(t *testing.T) {
-		span := tracing.NewSpan(context.Background(), t.Name())
+		span := tracing.NewSpan(t.Name())
 		testFormat(t, span, colorLogger)
 	})
 	t.Run("No Color", func(t *testing.T) {
-		span := tracing.NewSpan(context.Background(), t.Name())
+		span := tracing.NewSpan(t.Name())
 		testFormat(t, span, logger)
 	})
 
 	t.Run("Multiple Spans", func(t *testing.T) {
 		const depth = 5
 
-		span := tracing.NewSpan(context.Background(), t.Name())
+		span := tracing.NewSpan(t.Name())
 		for i := 0; i < depth; i++ {
-			span = tracing.NewSpan(span, fmt.Sprintf("Inner Span %d", i))
+			span = tracing.NewSpanCtx(span, fmt.Sprintf("Inner Span %d", i))
 		}
 		testFormat(t, span, colorLogger)
 		t.Run("No Color", func(t *testing.T) {
@@ -45,7 +45,7 @@ func TestFormat(t *testing.T) {
 		colorLogger.InfoContext(context.Background(), "Test Message Attrs", args...)
 
 		t.Run("With Span", func(t *testing.T) {
-			span := tracing.NewSpan(context.Background(), "Message Attrs")
+			span := tracing.NewSpanCtx(context.Background(), "Message Attrs")
 			colorLogger.InfoContext(span, "Test Message Attrs w/ Span", args...)
 		})
 	})

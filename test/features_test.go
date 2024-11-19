@@ -30,7 +30,7 @@ func TestFeatures(t *testing.T) {
 		buf.Reset()
 		buf2.Reset()
 		records := levelRecords()
-		span := tracing.NewSpan(context.Background(), t.Name())
+		span := tracing.NewSpanCtx(context.Background(), t.Name())
 
 		// Log with and without group
 		ref := tracing.NewHandler(buf, nil)
@@ -48,7 +48,7 @@ func TestFeatures(t *testing.T) {
 		buf.Reset()
 		buf2.Reset()
 		records := levelRecords()
-		span := tracing.NewSpan(context.Background(), t.Name())
+		span := tracing.NewSpanCtx(context.Background(), t.Name())
 
 		// Log with and without attribute
 		ref := tracing.NewHandler(buf, nil)
