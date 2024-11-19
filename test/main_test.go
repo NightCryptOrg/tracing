@@ -13,19 +13,20 @@ import (
 )
 
 var (
-	colorLogger = slog.New(tracing.NewHandler(os.Stdout, nil))
-	logger      = slog.New(tracing.NewHandler(os.Stdout, &tracing.Options{
+	logger        = slog.New(tracing.NewHandler(os.Stdout, nil))
+	noColorLogger = slog.New(tracing.NewHandler(os.Stdout, &tracing.Options{
 		MinLevel: slog.LevelDebug}))
 
 	levels = []slog.Level{slog.LevelInfo, slog.LevelDebug, slog.LevelWarn, slog.LevelError}
 )
 
 func TestMain(m *testing.M) {
-
 	var exitCode int
 	defer func() {
 		os.Exit(exitCode)
 	}()
+
+	slog.SetDefault(logger)
 
 	exitCode = m.Run()
 }
